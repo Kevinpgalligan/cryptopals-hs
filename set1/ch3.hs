@@ -34,10 +34,11 @@ hexDigitVal c = fromIntegral (fromJust (c `elemIndex` "0123456789abcdef"))
 
 -- Takes hex string as input, encrypted with some XOR key. Outputs an attempted decryption, in raw
 -- byte form.
-decrypt :: String -> ByteBuffer
-decrypt s =
-  let buff = hexToBuffer s
-  in decodeXor buff (minimumBy (comparing (englishScore buff)) [1..(maxBound::Word8)])
+solve :: String -> ByteBuffer
+solve = decrypt . hexToBuffer
+
+decrypt :: ByteBuffer -> ByteBuffer
+decrypt buff = decodeXor buff (minimumBy (comparing (englishScore buff)) [1..(maxBound::Word8)])
 
 computeLetterFreq :: ByteBuffer -> M.Map Char Double
 computeLetterFreq buff =
@@ -45,18 +46,22 @@ computeLetterFreq buff =
    . (map (\g -> (head g, (fromIntegral (length g))/(fromIntegral (B.length buff)))))
    . group
    . sort
-   -- Took me a while to figure this out. We have a [Word8], so we convert each Word8 to a Char
-   -- before converting to lowercase. `fromIntegral` is needed because `chr` expects an Int, not
-   -- a Word8. So, gotta convert between integral types.
+   -- Took me a while to figure this out. We have a [Word8], and we need a [Char]. We convert
+   -- each Word8 to a Char and also convert to lowercase. `fromIntegral` is needed because `chr`
+   -- expects an Int, not a Word8; gotta convert between integral types.
    . (map (toLower . chr . fromIntegral))
    . B.unpack) buff
 
+-- A lower score is better.
 englishScore :: ByteBuffer -> Word8 -> Double
 englishScore buffer key =
   let letterFreq = computeLetterFreq (decodeXor buffer key)
-  in foldl (\sum c -> sum + getFreq letterFreq c) 0.0 englishAlphabet
+  in foldl (\sum letterFreqPair -> let (c, f) = letterFreqPair
+              in sum + (abs $ (getFreq letterFreq c) - f)^2)
+           0.0
+           (zip englishAlphabet englishLetterFreq)
 
 getFreq :: M.Map Char Double -> Char -> Double
 getFreq charFreq c = case (M.lookup c charFreq) of
   Just f  -> f
-  Nothing -> 0.0
+  Nothing -> 1.0 -- give unknown characters a higher score, which is worse
