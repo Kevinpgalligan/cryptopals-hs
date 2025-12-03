@@ -7,7 +7,7 @@ import Data.Word (Word8)
 import Data.Bits (xor)
 import Data.Ord (comparing)
 import Data.List (minimumBy, elemIndex, sort, group)
-import Data.Char (toLower, chr)
+import Data.Char (chr, toLower)
 import Data.Maybe (fromJust)
 
 type ByteBuffer = B.ByteString
@@ -32,18 +32,29 @@ hexToBufferAux (a:b:rest) = (16*(hexDigitVal a) + hexDigitVal b) : hexToBufferAu
 hexDigitVal :: Char -> Word8
 hexDigitVal c = fromIntegral (fromJust (c `elemIndex` "0123456789abcdef"))
 
-decrypt :: String -> String
+-- Takes hex string as input, encrypted with some XOR key. Outputs an attempted decryption, in raw
+-- byte form.
+decrypt :: String -> ByteBuffer
 decrypt s =
   let buff = hexToBuffer s
-  in minimumBy (comparing (englishScore buff)) [1..(maxBound::Word8)] 
+  in decodeXor buff (minimumBy (comparing (englishScore buff)) [1..(maxBound::Word8)])
 
 computeLetterFreq :: ByteBuffer -> M.Map Char Double
-computeLetterFreq buff = (M.fromList . (map (\g -> (head g, (length g)/(B.length buff)))) . group . sort . (map (toLower . chr)) . B.unpack) buff
+computeLetterFreq buff =
+  (M.fromList
+   . (map (\g -> (head g, (fromIntegral (length g))/(fromIntegral (B.length buff)))))
+   . group
+   . sort
+   -- Took me a while to figure this out. We have a [Word8], so we convert each Word8 to a Char
+   -- before converting to lowercase. `fromIntegral` is needed because `chr` expects an Int, not
+   -- a Word8. So, gotta convert between integral types.
+   . (map (toLower . chr . fromIntegral))
+   . B.unpack) buff
 
 englishScore :: ByteBuffer -> Word8 -> Double
 englishScore buffer key =
-  let letterFreq = (decodeXor buffer key)
-  in foldl (\sum c -> sum + getFreq letterFreq c) englishAlphabet
+  let letterFreq = computeLetterFreq (decodeXor buffer key)
+  in foldl (\sum c -> sum + getFreq letterFreq c) 0.0 englishAlphabet
 
 getFreq :: M.Map Char Double -> Char -> Double
 getFreq charFreq c = case (M.lookup c charFreq) of
