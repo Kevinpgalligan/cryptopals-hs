@@ -15,14 +15,16 @@ module Cryptopals.Util
   englishLetterFreq,
   englishAlphabet,
   computeLetterFreq,
-  englishScore
+  englishScore,
+  tryXorDecrypt
   ) where
 
 import qualified Data.ByteString as B
 import qualified Data.Map as M
 import Data.Bits (xor)
 import Data.Char (chr, ord, isAlpha, toLower)
-import Data.List (elemIndex, sort, group, find)
+import Data.List (elemIndex, sort, group, find, minimumBy)
+import Data.Ord (comparing)
 import Data.Maybe (fromJust, fromMaybe)
 import Data.Word (Word8)
 
@@ -66,7 +68,7 @@ base64Ranges = [
   Base64Range 52 61 '0',
   Base64Range 62 62 '+',
   Base64Range 63 63 '/'
-]
+  ]
 
 base64Char :: Int -> Char
 base64Char n = chr ((n - baseNum) + ord baseChar)
@@ -98,7 +100,7 @@ englishLetterFreq = [
   0.024, 0.067, 0.075, 0.019, 0.0012, 0.06,
   0.063, 0.091, 0.028, 0.0098, 0.024, 0.0015,
   0.02, 0.00074
-]
+  ]
 
 englishAlphabet :: String
 englishAlphabet = "abcdefghijklmnopqrstuvwxyz"
@@ -116,11 +118,15 @@ computeLetterFreq buff =
   . B.unpack
   $ buff
 
--- Score how likely a buffer is to be English text when XORed with a key.
+-- Score how likely a buffer is to be English text.
 -- Lower score is better.
-englishScore :: ByteBuffer -> Word8 -> Double
-englishScore buffer key =
-  let letterFreq = computeLetterFreq (xorWithKey buffer key)
+englishScore :: ByteBuffer -> Double
+englishScore buffer =
+  let letterFreq = computeLetterFreq buffer
       -- Unknown characters get a higher score, which is worse.
       getFreq c = M.findWithDefault 1.0 c letterFreq
   in sum [ (getFreq c - f) ^ 2 | (c, f) <- zip englishAlphabet englishLetterFreq ]
+
+-- Try all the possible XOR keys, pick the best (according to how English-like the results are).
+tryXorDecrypt :: ByteBuffer -> ByteBuffer
+tryXorDecrypt buff = minimumBy (comparing englishScore) $ map (xorWithKey buff) [1..maxBound]
