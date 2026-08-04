@@ -31,6 +31,7 @@ import Data.Word (Word8)
 
 -- Type alias for byte buffers, in case we want to switch out the
 -- underlying representation later.
+-- (Although, I haven't yet wrapped the functions from the ByteString module).
 type ByteBuffer = B.ByteString
 
 ---- Hex conversion -----
@@ -129,7 +130,7 @@ englishScore buffer =
   let letterFreq = computeLetterFreq buffer
       getFreq freqMap c = M.findWithDefault 0.0 c freqMap
   -- Penalty for unknown characters, and compare the frequency distribution.
-  in 5*(fromIntegral $ countNonEnglishChars buffer) + (sum $ map (\c -> ((getFreq englishLetterFreq c) - (getFreq letterFreq c))^2) englishAlphabet)
+  in 1.0*(fromIntegral $ countNonEnglishChars buffer) + (sum $ map (\c -> ((getFreq englishLetterFreq c) - (getFreq letterFreq c))^2) englishAlphabet)
 
 countNonEnglishChars :: ByteBuffer -> Int
 countNonEnglishChars = length

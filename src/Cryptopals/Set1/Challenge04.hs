@@ -1,4 +1,4 @@
--- "Detect single-character XOR"
+-- Challenge 4: Detect single-character XOR
 -- https://cryptopals.com/sets/1/challenges/4
 
 module Cryptopals.Set1.Challenge04 (solve) where
