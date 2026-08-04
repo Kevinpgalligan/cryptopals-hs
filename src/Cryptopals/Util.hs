@@ -16,6 +16,7 @@ module Cryptopals.Util
   englishAlphabet,
   computeLetterFreq,
   englishScore,
+  countNonEnglishChars,
   tryXorDecrypt
   ) where
 
@@ -93,8 +94,8 @@ xorWithKey :: ByteBuffer -> Word8 -> ByteBuffer
 xorWithKey buffer key = B.map (xor key) buffer
 
 ---- Frequency analysis ----
-englishLetterFreq :: [Double]
-englishLetterFreq = [
+englishLetterFractions :: [Double]
+englishLetterFractions = [
   0.082, 0.015, 0.028, 0.043, 0.127, 0.022,
   0.02, 0.061, 0.07, 0.0016, 0.0077, 0.04,
   0.024, 0.067, 0.075, 0.019, 0.0012, 0.06,
@@ -104,6 +105,9 @@ englishLetterFreq = [
 
 englishAlphabet :: String
 englishAlphabet = "abcdefghijklmnopqrstuvwxyz"
+
+englishLetterFreq :: M.Map Char Double
+englishLetterFreq = M.fromList (zip englishAlphabet englishLetterFractions)
 
 computeLetterFreq :: ByteBuffer -> M.Map Char Double
 computeLetterFreq buff =
@@ -123,9 +127,19 @@ computeLetterFreq buff =
 englishScore :: ByteBuffer -> Double
 englishScore buffer =
   let letterFreq = computeLetterFreq buffer
-      -- Unknown characters get a higher score, which is worse.
-      getFreq c = M.findWithDefault 1.0 c letterFreq
-  in sum [ (getFreq c - f) ^ 2 | (c, f) <- zip englishAlphabet englishLetterFreq ]
+      getFreq freqMap c = M.findWithDefault 0.0 c freqMap
+  -- Penalty for unknown characters, and compare the frequency distribution.
+  in 5*(fromIntegral $ countNonEnglishChars buffer) + (sum $ map (\c -> ((getFreq englishLetterFreq c) - (getFreq letterFreq c))^2) englishAlphabet)
+
+countNonEnglishChars :: ByteBuffer -> Int
+countNonEnglishChars = length
+  . (filter (\w8 -> not
+              -- May need to expand this in future to include other punctuation.
+              $ (\c -> (elem c englishAlphabet) || (c == ' '))
+              $ toLower
+              $ chr
+              $ fromIntegral w8))
+  . B.unpack
 
 -- Try all the possible XOR keys, pick the best (according to how English-like the results are).
 tryXorDecrypt :: ByteBuffer -> ByteBuffer
