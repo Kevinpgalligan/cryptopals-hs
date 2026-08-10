@@ -113,7 +113,7 @@ numToBase64Aux n =
 
 ---- XOR stuff ----
 xorBytes :: Bytes -> Bytes -> Bytes
-xorBytes b1 b2 = zipWith xor b1 b2
+xorBytes = zipWith xor
 
 xorWithKey :: Bytes -> Word8 -> Bytes
 xorWithKey bytes key = map (xor key) bytes
