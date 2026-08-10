@@ -15,4 +15,4 @@ library
     Cryptopals.Set1.Challenge04
     Cryptopals.Set1.Challenge05
   hs-source-dirs:      src
-  build-depends:       base, bytestring, containers
+  build-depends:       text ^>=2.1.3, base, bytestring, containers

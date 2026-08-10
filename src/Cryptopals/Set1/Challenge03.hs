@@ -6,7 +6,7 @@ module Cryptopals.Set1.Challenge03 (solve) where
 import qualified Data.ByteString as B
 import Data.Word (Word8)
 
-import Cryptopals.Util (ByteBuffer, hexToBuffer, xorWithKey, englishScore, tryXorDecrypt)
+import Cryptopals.Util (Bytes, hexToBytes, xorWithKey, englishScore, tryXorDecrypt, bytesToStr)
 
-solve :: String -> ByteBuffer
-solve = tryXorDecrypt . hexToBuffer
+solve :: String -> String
+solve = bytesToStr . tryXorDecrypt . hexToBytes

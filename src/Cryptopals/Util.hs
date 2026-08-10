@@ -1,15 +1,18 @@
 module Cryptopals.Util
-  (ByteBuffer,
+  (Bytes,
+  bytesToStr,
+  bytesToHex,
+  strToBytes,
 
   hexValue,
   hexToNum,
-  hexToBuffer,
+  hexToBytes,
   hexDigitVal,
 
   base64Char,
   numToBase64,
 
-  xorBuffers,
+  xorBytes,
   xorWithKey,
 
   englishLetterFreq,
@@ -20,8 +23,10 @@ module Cryptopals.Util
   tryXorDecrypt
   ) where
 
-import qualified Data.ByteString as B
 import qualified Data.Map as M
+import qualified Data.ByteString as BS
+import qualified Data.Text.Encoding as TE
+import qualified Data.Text as T
 import Data.Bits (xor)
 import Data.Char (chr, ord, isAlpha, toLower)
 import Data.List (elemIndex, sort, group, find, minimumBy)
@@ -29,10 +34,24 @@ import Data.Ord (comparing)
 import Data.Maybe (fromJust, fromMaybe)
 import Data.Word (Word8)
 
--- Type alias for byte buffers, in case we want to switch out the
--- underlying representation later.
--- (Although, I haven't yet wrapped the functions from the ByteString module).
-type ByteBuffer = B.ByteString
+---- Data representation for bytes. ----
+type Bytes = [Word8]
+
+-- For pretty printing bytes.
+bytesToStr :: Bytes -> String
+bytesToStr = T.unpack . TE.decodeLatin1 . BS.pack
+
+strToBytes :: String -> Bytes
+-- TODO fromIntegral silently truncates, need error-checking.
+strToBytes = map (fromIntegral . ord)
+
+-- 01001101
+bytesToHex :: Bytes -> String
+bytesToHex [] = []
+bytesToHex (b:bs) = let x = 2^4
+  in (valueToHex (b `div` x))
+      : (valueToHex (b `mod` x))
+      : (bytesToHex bs)
 
 ---- Hex conversion -----
 hexValue :: Char -> Integer
@@ -43,18 +62,23 @@ hexValue c = let o = ord c in
 hexToNum :: String -> Integer
 hexToNum = foldl (\sum c -> 16*sum + hexValue c) 0
 
-hexToBuffer :: String -> ByteBuffer
--- 2^4 hex digits, 2 hex digits make a byte.
--- Let's say there's an odd number of hex digits. I think it's
--- fair to pad with a zero.
-hexToBuffer s = B.pack (hexToBufferAux (if odd (length s) then ('0':s) else s))
+hexToBytes :: String -> Bytes
+-- 2^4=16 hex digits, 2 hex digits make a byte. Pad with 0 if odd number of digits.
+hexToBytes s = decodeHexPairs (if odd (length s) then ('0':s) else s)
+  where decodeHexPairs [] = []
+        decodeHexPairs (a:b:rest) = (16*(hexDigitVal a) + hexDigitVal b) : decodeHexPairs rest
 
-hexToBufferAux :: String -> [Word8]
-hexToBufferAux [] = []
-hexToBufferAux (a:b:rest) = (16*(hexDigitVal a) + hexDigitVal b) : hexToBufferAux rest
+theHexDigits :: String
+theHexDigits = "0123456789abcdef"
 
 hexDigitVal :: Char -> Word8
-hexDigitVal c = fromIntegral (fromJust (c `elemIndex` "0123456789abcdef"))
+hexDigitVal c = fromIntegral (fromJust (c `elemIndex` theHexDigits))
+
+valueToHex :: Word8 -> Char
+valueToHex v =
+  if (fromIntegral v) >= (length theHexDigits)
+    then (error "Value outside hex range")
+  else theHexDigits !! (fromIntegral v)
 
 ---- Base64 conversion ----
 data Base64Range = Base64Range
@@ -88,11 +112,11 @@ numToBase64Aux n =
   in  if remainder > 0 then nextChar:(numToBase64Aux remainder) else [nextChar]
 
 ---- XOR stuff ----
-xorBuffers :: ByteBuffer -> ByteBuffer -> ByteBuffer
-xorBuffers b1 b2 = B.pack (B.zipWith xor b1 b2)
+xorBytes :: Bytes -> Bytes -> Bytes
+xorBytes b1 b2 = zipWith xor b1 b2
 
-xorWithKey :: ByteBuffer -> Word8 -> ByteBuffer
-xorWithKey buffer key = B.map (xor key) buffer
+xorWithKey :: Bytes -> Word8 -> Bytes
+xorWithKey bytes key = map (xor key) bytes
 
 ---- Frequency analysis ----
 englishLetterFractions :: [Double]
@@ -110,29 +134,28 @@ englishAlphabet = "abcdefghijklmnopqrstuvwxyz"
 englishLetterFreq :: M.Map Char Double
 englishLetterFreq = M.fromList (zip englishAlphabet englishLetterFractions)
 
-computeLetterFreq :: ByteBuffer -> M.Map Char Double
-computeLetterFreq buff =
+computeLetterFreq :: Bytes -> M.Map Char Double
+computeLetterFreq bytes =
   M.fromList
-  . map (\g -> (head g, fromIntegral (length g) / fromIntegral (B.length buff)))
+  . map (\g -> (head g, fromIntegral (length g) / fromIntegral (length bytes)))
   . group
   . sort
   -- Took me a while to figure this out. We have a [Word8], and we need a [Char]. We convert
   -- each Word8 to a Char and also convert to lowercase. `fromIntegral` is needed because `chr`
   -- expects an Int, not a Word8; gotta convert between integral types.
   . map (toLower . chr . fromIntegral)
-  . B.unpack
-  $ buff
+  $ bytes
 
--- Score how likely a buffer is to be English text.
+-- Score how likely some bytes are to be English text.
 -- Lower score is better.
-englishScore :: ByteBuffer -> Double
-englishScore buffer =
-  let letterFreq = computeLetterFreq buffer
+englishScore :: Bytes -> Double
+englishScore bs =
+  let letterFreq = computeLetterFreq bs
       getFreq freqMap c = M.findWithDefault 0.0 c freqMap
   -- Penalty for unknown characters, and compare the frequency distribution.
-  in 1.0*(fromIntegral $ countNonEnglishChars buffer) + (sum $ map (\c -> ((getFreq englishLetterFreq c) - (getFreq letterFreq c))^2) englishAlphabet)
+  in 1.0*(fromIntegral $ countNonEnglishChars bs) + (sum $ map (\c -> ((getFreq englishLetterFreq c) - (getFreq letterFreq c))^2) englishAlphabet)
 
-countNonEnglishChars :: ByteBuffer -> Int
+countNonEnglishChars :: Bytes -> Int
 countNonEnglishChars = length
   . (filter (\w8 -> not
               -- May need to expand this in future to include other punctuation.
@@ -140,8 +163,7 @@ countNonEnglishChars = length
               $ toLower
               $ chr
               $ fromIntegral w8))
-  . B.unpack
 
 -- Try all the possible XOR keys, pick the best (according to how English-like the results are).
-tryXorDecrypt :: ByteBuffer -> ByteBuffer
-tryXorDecrypt buff = minimumBy (comparing englishScore) $ map (xorWithKey buff) [1..maxBound]
+tryXorDecrypt :: Bytes -> Bytes
+tryXorDecrypt bytes = minimumBy (comparing englishScore) $ map (xorWithKey bytes) [1..maxBound]
