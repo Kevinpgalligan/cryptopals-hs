@@ -11,6 +11,8 @@ module Cryptopals.Util
 
   base64Char,
   numToBase64,
+  decodeBase64,
+  decodeBase64Char,
 
   xorBytes,
   xorWithKey,
@@ -27,7 +29,7 @@ import qualified Data.Map as M
 import qualified Data.ByteString as BS
 import qualified Data.Text.Encoding as TE
 import qualified Data.Text as T
-import Data.Bits (xor)
+import Data.Bits (xor, shiftL, shiftR, (.&.))
 import Data.Char (chr, ord, isAlpha, toLower)
 import Data.List (elemIndex, sort, group, find, minimumBy)
 import Data.Ord (comparing)
@@ -103,13 +105,35 @@ base64Char n = chr ((n - baseNum) + ord baseChar)
 
 numToBase64 :: Integer -> String
 numToBase64 0 = "A"
-numToBase64 n = reverse (numToBase64Aux n)
+numToBase64 n = reverse (aux n)
+  where aux n = let remainder = quot n 64
+                    nextChar  = base64Char (fromInteger (rem n 64))
+                in  if remainder > 0
+                    then nextChar:(aux remainder)
+                    else [nextChar]
 
-numToBase64Aux :: Integer -> String
-numToBase64Aux n =
-  let remainder = quot n 64
-      nextChar  = base64Char (fromInteger (rem n 64))
-  in  if remainder > 0 then nextChar:(numToBase64Aux remainder) else [nextChar]
+decodeBase64 :: String -> Bytes
+decodeBase64 [] = []
+decodeBase64 cs = (decodeQuad (take 4 cs) 0 0) ++ (decodeBase64 $ drop 4 cs)
+  where decodeQuad [] _ _ = []
+        decodeQuad ('=':q) nBits value = []
+        decodeQuad (c:q) nBits byte =
+          let v = decodeBase64Char c
+              -- Each base64 character is 6 bits (64=2^6), we can take up
+              -- to that many bits to fill up the next byte.
+              bitsToTake = (min (8 - nBits) 6)
+              bitsLeft = 6 - bitsToTake
+              newByte = (byte `shiftL` bitsToTake) `xor` (v `shiftR` bitsLeft)
+              newNBits = nBits + bitsToTake
+          in if newNBits == 8
+             then newByte : (decodeQuad q bitsLeft (v `mod` (1 `shiftL` bitsLeft)))
+             else decodeQuad q newNBits newByte
+
+base64Digits :: String
+base64Digits = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+
+decodeBase64Char :: Char -> Word8
+decodeBase64Char = fromIntegral . fromJust . (`elemIndex` base64Digits)
 
 ---- XOR stuff ----
 xorBytes :: Bytes -> Bytes -> Bytes
