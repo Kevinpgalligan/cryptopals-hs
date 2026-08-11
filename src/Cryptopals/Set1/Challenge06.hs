@@ -6,11 +6,21 @@ module Cryptopals.Set1.Challenge06 (solve, editDistance) where
 import Data.Bits (popCount)
 import Data.List (sortBy)
 import Data.Ord (comparing)
+import System.IO (hClose, hGetContents, openFile, IOMode (ReadMode))
 
-import Cryptopals.Util (Bytes, xorBytes)
+import Cryptopals.Util (Bytes, xorBytes, decodeBase64, bytesToStr)
 
 solve :: String -> IO ()
-solve filepath = return ()
+solve filepath = do
+    handle <- openFile filepath ReadMode
+    content <- hGetContents handle
+    let bs = decodeBase64 $ foldr (++) [] (lines content)
+    print $ bytesToStr $ tryDecryptRepeatedKeyXor bs
+    hClose handle
+
+-- TODO: this.
+tryDecryptRepeatedKeyXor :: Bytes -> Bytes
+tryDecryptRepeatedKeyXor bs = []
 
 -- ghci> (strToBytes "this is a test") `editDistance` (strToBytes "wokka wokka!!!")
 -- 37
