@@ -6,14 +6,8 @@
 
 module Cryptopals.Set1.Challenge05 (solve) where
 
-import Cryptopals.Util (strToBytes, bytesToHex, xorBytes)
+import Cryptopals.Util (strToBytes, bytesToHex, xorBytes, encryptRepeatedKeyXor)
 
 solve :: String -> String -> String
 solve key text = bytesToHex
-    $ xorBytes (cycleList $ strToBytes key) (strToBytes text)
-
-cycleList :: [a] -> [a]
-cycleList [] = []
-cycleList xs = loop xs xs
-    where loop xs [] = loop xs xs
-          loop xs (y:ys) = y:(loop xs ys)
+    $ encryptRepeatedKeyXor (strToBytes text) (strToBytes key)

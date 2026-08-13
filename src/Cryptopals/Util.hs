@@ -16,13 +16,14 @@ module Cryptopals.Util
 
   xorBytes,
   xorWithKey,
+  encryptRepeatedKeyXor,
 
   englishLetterFreq,
   englishAlphabet,
   computeLetterFreq,
   englishScore,
   countNonEnglishChars,
-  tryXorDecrypt
+  crackXorDecrypt
   ) where
 
 import qualified Data.Map as M
@@ -164,9 +165,10 @@ computeLetterFreq bytes =
   . map (\g -> (head g, fromIntegral (length g) / fromIntegral (length bytes)))
   . group
   . sort
-  -- Took me a while to figure this out. We have a [Word8], and we need a [Char]. We convert
-  -- each Word8 to a Char and also convert to lowercase. `fromIntegral` is needed because `chr`
-  -- expects an Int, not a Word8; gotta convert between integral types.
+  -- Took me a while to figure this out. We have a [Word8], and we need a [Char].
+  -- We convert each Word8 to a Char and also convert to lowercase. `fromIntegral`
+  -- is needed because `chr` expects an Int, not a Word8; gotta convert between
+  -- integral types.
   . map (toLower . chr . fromIntegral)
   $ bytes
 
@@ -176,18 +178,41 @@ englishScore :: Bytes -> Double
 englishScore bs =
   let letterFreq = computeLetterFreq bs
       getFreq freqMap c = M.findWithDefault 0.0 c freqMap
-  -- Penalty for unknown characters, and compare the frequency distribution.
-  in 1.0*(fromIntegral $ countNonEnglishChars bs) + (sum $ map (\c -> ((getFreq englishLetterFreq c) - (getFreq letterFreq c))^2) englishAlphabet)
+  -- Compare the frequency distribution, with a penalty for unknown characters.
+  in 1.0*(fromIntegral $ countNonEnglishChars bs)
+      + (sum
+         $ map (\c -> ((getFreq englishLetterFreq c) - (getFreq letterFreq c))^2)
+               englishAlphabet)
 
 countNonEnglishChars :: Bytes -> Int
 countNonEnglishChars = length
   . (filter (\w8 -> not
               -- May need to expand this in future to include other punctuation.
-              $ (\c -> (elem c englishAlphabet) || (c == ' '))
+              $ (\c -> (elem c englishAlphabet) || (c `elem` " .-!,'\""))
               $ toLower
               $ chr
               $ fromIntegral w8))
 
--- Try all the possible XOR keys, pick the best (according to how English-like the results are).
-tryXorDecrypt :: Bytes -> Bytes
-tryXorDecrypt bytes = minimumBy (comparing englishScore) $ map (xorWithKey bytes) [1..maxBound]
+-- Try all the possible XOR keys, pick the best according to
+-- how English-like the results are.
+-- Returns the suspected decryption and key byte.
+crackXorDecrypt :: Bytes -> (Bytes, Word8)
+crackXorDecrypt bytes = 
+  (\(decryption, key, _) -> (decryption, key))
+  $ minimumBy (comparing (\(_, _, score) -> score))
+  $ map (\k -> let decryption = xorWithKey bytes k
+               in (decryption, k, englishScore decryption))
+        [1..maxBound]
+
+encryptRepeatedKeyXor :: Bytes -> Bytes -> Bytes
+encryptRepeatedKeyXor bytes key = xorBytes bytes (cycleList key)
+
+cycleList :: [a] -> [a]
+cycleList [] = []
+cycleList xs = loop xs xs
+    where loop xs [] = loop xs xs
+          loop xs (y:ys) = y:(loop xs ys)
+
+decryptRepeatedKeyXor :: Bytes -> Bytes -> Bytes
+-- xor undoes itself, so...
+decryptRepeatedKeyXor = encryptRepeatedKeyXor
