@@ -1,8 +1,7 @@
 -- Challenge 6: Break repeating-key XOR
 -- https://cryptopals.com/sets/1/challenges/6
 
-module Cryptopals.Set1.Challenge06 (solve, rankKeySizes, crackRepeatedKeyXor,
-    testKeyRank, scoreKeySize, editDistance, takeBlocks) where
+module Cryptopals.Set1.Challenge06 (solve) where
 
 import Data.Bits (popCount)
 import Data.List (sortBy, transpose, minimumBy)
@@ -10,8 +9,7 @@ import Data.Ord (comparing)
 import System.IO (hClose, hGetContents, openFile, IOMode (ReadMode))
 import Data.Word (Word8)
 
-import Cryptopals.Util (Bytes, xorBytes, decodeBase64, bytesToStr,
-    crackXorDecrypt, englishScore)
+import Cryptopals.Util (Bytes, xorBytes, decodeBase64, bytesToStr, crackXorDecrypt, englishScore)
 
 solve :: String -> IO ()
 solve filepath = do
@@ -22,14 +20,6 @@ solve filepath = do
     print (bytesToStr key)
     print "======"
     print (bytesToStr msg)
-    hClose handle
-
-testKeyRank :: String -> IO ()
-testKeyRank filepath = do
-    handle <- openFile filepath ReadMode
-    content <- hGetContents handle
-    let bs = decodeBase64 $ foldr (++) "" (lines content)
-    print (rankKeySizes bs 40)
     hClose handle
 
 -- Returns the decrypted message (hopefully) and associated key.
@@ -71,7 +61,9 @@ rankKeySizes bs maxKeySize =
 scoreKeySize :: Bytes -> Int -> Double
 scoreKeySize bs k =
         -- Average edit distance between adjacent chunks. Smaller is better.
-        (/ (fromIntegral $ (length blocks) - 1))
+        -- Normalise by key size.
+        (/ (fromIntegral k))
+        $ (/ (fromIntegral $ (length blocks) - 1))
         $ fromIntegral
         $ sum
         $ zipWith editDistance blocks (tail blocks)
