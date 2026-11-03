@@ -16,5 +16,6 @@ library
     Cryptopals.Set1.Challenge05
     Cryptopals.Set1.Challenge06
     Cryptopals.Set1.Challenge07
+    Cryptopals.Set1.Challenge08
   hs-source-dirs:      src
   build-depends:       text ^>=2.1.3, base, bytestring, containers, crypton

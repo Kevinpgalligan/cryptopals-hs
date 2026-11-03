@@ -3,6 +3,7 @@ module Cryptopals.Util
   bytesToStr,
   bytesToHex,
   strToBytes,
+  printBytes,
 
   hexValue,
   hexToNum,
@@ -23,7 +24,9 @@ module Cryptopals.Util
   computeLetterFreq,
   englishScore,
   countNonEnglishChars,
-  crackXorDecrypt
+  crackXorDecrypt,
+
+  aes128EcbDecrypt
   ) where
 
 import qualified Data.Map as M
@@ -36,6 +39,9 @@ import Data.List (elemIndex, sort, group, find, minimumBy)
 import Data.Ord (comparing)
 import Data.Maybe (fromJust, fromMaybe)
 import Data.Word (Word8)
+import Crypto.Cipher.AES (AES128)
+import Crypto.Cipher.Types (BlockCipher(ecbDecrypt), Cipher(cipherInit))
+import Crypto.Error (throwCryptoError)
 
 ---- Data representation for bytes. ----
 type Bytes = [Word8]
@@ -55,6 +61,9 @@ bytesToHex (b:bs) = let x = 2^4
   in (valueToHex (b `div` x))
       : (valueToHex (b `mod` x))
       : (bytesToHex bs)
+
+printBytes :: Bytes -> IO ()
+printBytes = print . bytesToStr
 
 ---- Hex conversion -----
 hexValue :: Char -> Integer
@@ -216,3 +225,9 @@ cycleList xs = loop xs xs
 decryptRepeatedKeyXor :: Bytes -> Bytes -> Bytes
 -- xor undoes itself, so...
 decryptRepeatedKeyXor = encryptRepeatedKeyXor
+
+---- AES ----
+aes128EcbDecrypt :: Bytes -> Bytes
+aes128EcbDecrypt ciphertext = BS.unpack $ ecbDecrypt cipher (BS.pack ciphertext)
+    where cipher :: AES128
+          cipher = throwCryptoError $ cipherInit (BS.pack $ strToBytes "YELLOW SUBMARINE")

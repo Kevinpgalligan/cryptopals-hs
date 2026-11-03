@@ -11,25 +11,12 @@ module Cryptopals.Set1.Challenge07 (solve) where
 import qualified Data.ByteString as BS
 import System.IO (hClose, hGetContents, openFile, IOMode (ReadMode))
 
-import Crypto.Cipher.AES (AES128)
-import Crypto.Cipher.Types (BlockCipher(..), Cipher(..))
-import Crypto.Error (throwCryptoError)
-
-import Cryptopals.Util (strToBytes, decodeBase64)
+import Cryptopals.Util (aes128EcbDecrypt, decodeBase64, printBytes)
 
 solve :: String -> IO ()
 solve filepath = do
     handle <- openFile filepath ReadMode
     content <- hGetContents handle
-    let ciphertext = BS.pack $ decodeBase64 $ foldr (++) [] (lines content)
-    print $ aes128EcbDecrypt ciphertext
+    let ciphertext = decodeBase64 $ foldr (++) [] (lines content)
+    printBytes $ aes128EcbDecrypt ciphertext
     hClose handle
-
--- Will probably want to revise the interface of this for general use. Do we want to work with
--- bytestrings? That's what crypton accepts. But that's obviously incompatible with our Bytes type.
--- Now maybe regretting inventing a new type, woops.
--- Also, probably don't want to hardcode the key as "YELLOW SUBMARINE".
-aes128EcbDecrypt :: BS.ByteString -> BS.ByteString
-aes128EcbDecrypt ciphertext = ecbDecrypt cipher ciphertext
-    where cipher :: AES128
-          cipher = throwCryptoError $ cipherInit (BS.pack $ strToBytes "YELLOW SUBMARINE")
