@@ -1,5 +1,6 @@
 module Cryptopals.Util
-  (Bytes,
+  (Byte,
+  Bytes,
   bytesToStr,
   bytesToHex,
   strToBytes,
@@ -28,10 +29,13 @@ module Cryptopals.Util
   crackXorEncryption,
 
   aes128BlockSize,
+  aes128KeySize,
   aes128EcbDecrypt,
   aes128EcbEncrypt,
   aes128CbcDecrypt,
   aes128CbcEncrypt,
+
+  padWithPkcsNo7
   ) where
 
 import qualified Data.Map as M
@@ -50,7 +54,8 @@ import Crypto.Cipher.Types (BlockCipher(ecbDecrypt, ecbEncrypt), Cipher(cipherIn
 import Crypto.Error (throwCryptoError)
 
 ---- Data representation for bytes. ----
-type Bytes = [Word8]
+type Byte = Word8
+type Bytes = [Byte]
 
 -- For pretty printing bytes.
 bytesToStr :: Bytes -> String
@@ -241,6 +246,8 @@ decryptRepeatedKeyXor = encryptRepeatedKeyXor
 ---- AES ----
 aes128BlockSize :: Int
 aes128BlockSize = 16
+aes128KeySize :: Int
+aes128KeySize = 16
 
 aes128EcbDecrypt :: Bytes -> Bytes -> Bytes
 aes128EcbDecrypt key ciphertext = BS.unpack $ ecbDecrypt cipher (BS.pack ciphertext)
@@ -267,3 +274,8 @@ aes128CbcDecrypt _ _ [] = []
 aes128CbcDecrypt key iv ciphertext =
   let cipherblock = take aes128BlockSize ciphertext
   in (xorBytes iv (aes128EcbDecrypt key cipherblock)) ++ aes128CbcDecrypt key cipherblock (drop aes128BlockSize ciphertext)
+
+---- Padding ----
+padWithPkcsNo7 :: Word8 -> Bytes -> Bytes
+padWithPkcsNo7 blockSize block = block ++ (take (fromIntegral fillSize) (repeat fillSize))
+    where fillSize = blockSize - fromIntegral ((length block) `mod` (fromIntegral blockSize))
