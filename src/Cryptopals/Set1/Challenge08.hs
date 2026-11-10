@@ -16,8 +16,8 @@ solve filepath = do
     print
         -- Trying to decrypt with the hardcoded key, "YELLOW SUBMARINE", gave nonsense. So apparently
         -- we're just supposed to print the hex.
-        -- (I compared to other solutions, and also confirmed that there's only 1 ciphertext with
-        --  repeat blocks.)
+        -- (I compared to other solutions, and they seemed to do the same thing. I also confirmed that
+        --  only one of the ciphertexts has repeat blocks.)
         $ bytesToHex
         $ fromJust
         $ findEcbCiphertext
