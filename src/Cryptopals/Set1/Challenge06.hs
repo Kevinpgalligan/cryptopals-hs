@@ -9,7 +9,7 @@ import Data.Ord (comparing)
 import System.IO (hClose, hGetContents, openFile, IOMode (ReadMode))
 import Data.Word (Word8)
 
-import Cryptopals.Util (Bytes, xorBytes, decodeBase64, bytesToStr, crackXorDecrypt, englishScore)
+import Cryptopals.Util (Bytes, xorBytes, decodeBase64, bytesToStr, crackXorEncryption, englishScore)
 
 solve :: String -> IO ()
 solve filepath = do
@@ -38,7 +38,7 @@ crackRepeatedKeyXor bs maxKeySize =
                 -- the key!
                  map snd blocksKeys))
             -- this gives a list of pairs of blocks & key bytes
-            $ map crackXorDecrypt
+            $ map crackXorEncryption
             $ transpose
             $ (takeBlocks bs keySize)
 

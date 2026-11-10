@@ -7,7 +7,7 @@ import System.IO (openFile, hGetContents, IOMode(ReadMode), print, hClose)
 import Data.List (minimumBy)
 import Data.Ord (comparing)
 
-import Cryptopals.Util (bytesToStr, Bytes, englishScore, crackXorDecrypt, hexToBytes)
+import Cryptopals.Util (bytesToStr, Bytes, englishScore, crackXorEncryption, hexToBytes)
 
 solve :: String -> IO ()
 solve fileName = do
@@ -15,6 +15,6 @@ solve fileName = do
     content <- hGetContents handle
     print $ bytesToStr
         $ minimumBy (comparing englishScore)
-        $ map (fst . crackXorDecrypt . hexToBytes)
+        $ map (fst . crackXorEncryption . hexToBytes)
         $ lines content
     hClose handle

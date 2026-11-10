@@ -14,6 +14,7 @@ module Cryptopals.Util
   numToBase64,
   decodeBase64,
   decodeBase64Char,
+  readBase64Blob,
 
   xorBytes,
   xorWithKey,
@@ -24,9 +25,13 @@ module Cryptopals.Util
   computeLetterFreq,
   englishScore,
   countNonEnglishChars,
-  crackXorDecrypt,
+  crackXorEncryption,
 
-  aes128EcbDecrypt
+  aes128BlockSize,
+  aes128EcbDecrypt,
+  aes128EcbEncrypt,
+  aes128CbcDecrypt,
+  aes128CbcEncrypt,
   ) where
 
 import qualified Data.Map as M
@@ -39,8 +44,9 @@ import Data.List (elemIndex, sort, group, find, minimumBy)
 import Data.Ord (comparing)
 import Data.Maybe (fromJust, fromMaybe)
 import Data.Word (Word8)
+import System.IO (readFile)
 import Crypto.Cipher.AES (AES128)
-import Crypto.Cipher.Types (BlockCipher(ecbDecrypt), Cipher(cipherInit))
+import Crypto.Cipher.Types (BlockCipher(ecbDecrypt, ecbEncrypt), Cipher(cipherInit))
 import Crypto.Error (throwCryptoError)
 
 ---- Data representation for bytes. ----
@@ -145,6 +151,12 @@ base64Digits = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/
 decodeBase64Char :: Char -> Word8
 decodeBase64Char = fromIntegral . fromJust . (`elemIndex` base64Digits)
 
+readBase64Blob :: String -> IO Bytes
+readBase64Blob filepath = do
+  content <- readFile filepath
+  let result = decodeBase64 (foldr (++) [] (lines content))
+  return result
+
 ---- XOR stuff ----
 xorBytes :: Bytes -> Bytes -> Bytes
 xorBytes = zipWith xor
@@ -205,8 +217,8 @@ countNonEnglishChars = length
 -- Try all the possible XOR keys, pick the best according to
 -- how English-like the results are.
 -- Returns the suspected decryption and key byte.
-crackXorDecrypt :: Bytes -> (Bytes, Word8)
-crackXorDecrypt bytes = 
+crackXorEncryption :: Bytes -> (Bytes, Word8)
+crackXorEncryption bytes = 
   (\(decryption, key, _) -> (decryption, key))
   $ minimumBy (comparing (\(_, _, score) -> score))
   $ map (\k -> let decryption = xorWithKey bytes k
@@ -227,7 +239,31 @@ decryptRepeatedKeyXor :: Bytes -> Bytes -> Bytes
 decryptRepeatedKeyXor = encryptRepeatedKeyXor
 
 ---- AES ----
-aes128EcbDecrypt :: Bytes -> Bytes
-aes128EcbDecrypt ciphertext = BS.unpack $ ecbDecrypt cipher (BS.pack ciphertext)
-    where cipher :: AES128
-          cipher = throwCryptoError $ cipherInit (BS.pack $ strToBytes "YELLOW SUBMARINE")
+aes128BlockSize :: Int
+aes128BlockSize = 16
+
+aes128EcbDecrypt :: Bytes -> Bytes -> Bytes
+aes128EcbDecrypt key ciphertext = BS.unpack $ ecbDecrypt cipher (BS.pack ciphertext)
+    -- Probably very wasteful that we're initialising the cipher every time we call
+    -- this function. Especially in the CBC implementation. Should be able to cache
+    -- it for efficiency, like in Crypton itself. Oh well.
+    where cipher = initAes128Cipher key
+
+aes128EcbEncrypt :: Bytes -> Bytes -> Bytes
+aes128EcbEncrypt key plaintext = BS.unpack $ ecbEncrypt cipher (BS.pack plaintext)
+  where cipher = initAes128Cipher key
+
+initAes128Cipher :: Bytes -> AES128
+initAes128Cipher key = throwCryptoError $ cipherInit (BS.pack key)
+
+aes128CbcEncrypt :: Bytes -> Bytes -> Bytes -> Bytes
+aes128CbcEncrypt _ _ [] = []
+aes128CbcEncrypt key iv plaintext =
+  let cipherblock = aes128EcbEncrypt key (xorBytes iv (take aes128BlockSize plaintext))
+  in cipherblock ++ (aes128CbcEncrypt key cipherblock (drop aes128BlockSize plaintext))
+
+aes128CbcDecrypt :: Bytes -> Bytes -> Bytes -> Bytes
+aes128CbcDecrypt _ _ [] = []
+aes128CbcDecrypt key iv ciphertext =
+  let cipherblock = take aes128BlockSize ciphertext
+  in (xorBytes iv (aes128EcbDecrypt key cipherblock)) ++ aes128CbcDecrypt key cipherblock (drop aes128BlockSize ciphertext)

@@ -11,12 +11,12 @@ module Cryptopals.Set1.Challenge07 (solve) where
 import qualified Data.ByteString as BS
 import System.IO (hClose, hGetContents, openFile, IOMode (ReadMode))
 
-import Cryptopals.Util (aes128EcbDecrypt, decodeBase64, printBytes)
+import Cryptopals.Util (aes128EcbDecrypt, decodeBase64, printBytes, strToBytes)
 
 solve :: String -> IO ()
 solve filepath = do
     handle <- openFile filepath ReadMode
     content <- hGetContents handle
     let ciphertext = decodeBase64 $ foldr (++) [] (lines content)
-    printBytes $ aes128EcbDecrypt ciphertext
+    printBytes $ aes128EcbDecrypt (strToBytes "YELLOW SUBMARINE") ciphertext
     hClose handle
