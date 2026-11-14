@@ -276,6 +276,6 @@ aes128CbcDecrypt key iv ciphertext =
   in (xorBytes iv (aes128EcbDecrypt key cipherblock)) ++ aes128CbcDecrypt key cipherblock (drop aes128BlockSize ciphertext)
 
 ---- Padding ----
-padWithPkcsNo7 :: Word8 -> Bytes -> Bytes
-padWithPkcsNo7 blockSize block = block ++ (take (fromIntegral fillSize) (repeat fillSize))
+padWithPkcsNo7 :: Int -> Bytes -> Bytes
+padWithPkcsNo7 blockSize block = block ++ (take (fromIntegral fillSize) (repeat $ fromIntegral fillSize))
     where fillSize = blockSize - fromIntegral ((length block) `mod` (fromIntegral blockSize))

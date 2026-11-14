@@ -20,5 +20,6 @@ library
     Cryptopals.Set2.Challenge09
     Cryptopals.Set2.Challenge10
     Cryptopals.Set2.Challenge11
+    Cryptopals.Set2.Challenge12
   hs-source-dirs:      src
   build-depends:       text ^>=2.1.3, base, bytestring, containers, crypton, random
