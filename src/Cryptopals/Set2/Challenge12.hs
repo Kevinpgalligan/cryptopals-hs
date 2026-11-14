@@ -7,11 +7,7 @@
 
 module Cryptopals.Set2.Challenge12 (
     secretEncrypt,
-    decryptByteAtATime,
-    deriveBlockSize,
-    lastN,
-    inferByte,
-    deriveSecretSize) where
+    decryptByteAtATime) where
 
 import Cryptopals.Util (
     Bytes,
